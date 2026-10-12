@@ -1004,6 +1004,27 @@ NTSTATUS ProcessInit() {
 #endif
 #endif
 
+#ifdef FEX_IOS_HOST
+  /* madeira-bcd: Launcher full SMC v1. Keep the configured SMC policy by
+   * default: the full-validator trial did not fix the HLT and produces
+   * larger JIT blocks. Explicit opt-in still checks original bytes before
+   * each guest instruction and recompiles changed blocks with FEX's
+   * existing validator. This is not a trap bypass or a single step. */
+  {
+    const auto SmcName = fextl::string {ExecutableName};
+    const char* SmcOpt = getenv("MADEIRA_LAUNCHER_FULL_SMC");
+    const char* SmcExplicit = getenv("FEX_SMCCHECKS");
+    const bool SmcEnable = _stricmp(SmcName.c_str(), "Launcher.exe") == 0 &&
+                          SmcOpt && strcmp(SmcOpt, "1") == 0 && !(SmcExplicit && SmcExplicit[0]);
+    if (SmcEnable) {
+      FEXCore::Config::Set(FEXCore::Config::CONFIG_SMCCHECKS,
+                          fextl::fmt::format("{}", static_cast<unsigned>(FEXCore::Config::CONFIG_SMC_FULL)));
+    }
+    FEX_CONFIG_OPT(SmcEffective, SMCCHECKS);
+    LogMan::Msg::IFmt("FEX: launcher-smc-v1 madeira-bcd enabled={} mode={} exe={}",
+                     SmcEnable, static_cast<unsigned>(SmcEffective()), ExecutableName);
+  }
+#endif
   FEXCore::Config::Set(FEXCore::Config::CONFIG_IS64BIT_MODE, "1");
 
   FEXCore::Profiler::Init("", "");
